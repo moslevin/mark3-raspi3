@@ -52,12 +52,13 @@ See license.txt for more information
 #include "kerneltimer.h"
 #include "timerlist.h"
 #include "quantum.h"
+#include "kernel.h"
 
 using namespace Mark3;
 
-volatile K_WORD g_uCriticalCount;   // Critical section nesting counter
-volatile K_WORD g_uExNestingCount;  // Exception nesting counter
-volatile K_WORD g_uThreadUsesFPU;   // Current thread uses FPU - set to 1 to enable lazy stacking in current thread
+volatile K_WORD g_uCriticalCount;  // Critical section nesting counter
+volatile K_WORD g_uExNestingCount; // Exception nesting counter
+volatile K_WORD g_uThreadUsesFPU;  // Current thread uses FPU - set to 1 to enable lazy stacking in current thread
 
 namespace Mark3
 {
@@ -110,14 +111,14 @@ void ThreadPort::InitStack(Thread* pclThread_)
     PUSH_TO_STACK(pu64Stack, 0x2626262626262626);
     PUSH_TO_STACK(pu64Stack, 0x2929292929292929);
     PUSH_TO_STACK(pu64Stack, 0x2828282828282828);
-    PUSH_TO_STACK(pu64Stack, 0);        // XZR
-    PUSH_TO_STACK(pu64Stack, 0);        // R30
+    PUSH_TO_STACK(pu64Stack, 0); // XZR
+    PUSH_TO_STACK(pu64Stack, 0); // R30
 
-    PUSH_TO_STACK(pu64Stack, 0x4);      // Initial processor state (EL1)
+    PUSH_TO_STACK(pu64Stack, 0x4);                                  // Initial processor state (EL1)
     PUSH_TO_STACK(pu64Stack, (uint64_t)pclThread_->m_pfEntryPoint); // Exception return address
 
-    PUSH_TO_STACK(pu64Stack, 0);        // Thread uses floats - set to 0 by default to enable lazy stacking
-    PUSH_TO_STACK(pu64Stack, 0);        // Reserved -- for 16-byte alignment
+    PUSH_TO_STACK(pu64Stack, 0); // Thread uses floats - set to 0 by default to enable lazy stacking
+    PUSH_TO_STACK(pu64Stack, 0); // Reserved -- for 16-byte alignment
 
     pu64Stack++;
 
@@ -142,13 +143,17 @@ void ThreadPort::StartThreads()
 
     Profiler::Init();
 
+    // Tell the kernel that we're ready to start scheduling threads
+    // for the first time.
+    Kernel::CompleteStart();
+
     Scheduler::SetScheduler(1); // enable the scheduler
     Scheduler::Schedule();      // run the scheduler - determine the first thread to run
 
     Thread_Switch(); // Set the next scheduled thread to the current thread
 
     //!! Note: Kernel timers are started from the timer thread in this port
-    KernelSWI::Start();   // enable the task switch SWI
+    KernelSWI::Start(); // enable the task switch SWI
 
 #if KERNEL_ROUND_ROBIN
     Quantum::Update(g_pclCurrent);
@@ -162,8 +167,7 @@ void ThreadPort::StartThreads()
 //---------------------------------------------------------------------------
 void ThreadPort_StartFirstThread(void)
 {
-    ASM (
-        " MSR 	SPSEL, #0  \n"
+    ASM(" MSR 	SPSEL, #0  \n"
 
         /* Swap in next thread */
         " MOV		X1, %[CURRENT_THREAD]\n "
@@ -204,8 +208,8 @@ void ThreadPort_StartFirstThread(void)
 
         " MSR 	SPSEL, #1 \n"
         " ERET \n"
-    :
-    : [CURRENT_THREAD] "r"(g_pclCurrent));
+        :
+        : [CURRENT_THREAD] "r"(g_pclCurrent));
 }
 
 } // namespace Mark3

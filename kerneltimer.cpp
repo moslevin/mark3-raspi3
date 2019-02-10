@@ -18,18 +18,13 @@ See license.txt for more information
     @brief  Kernel Timer Implementation for ARM Cortex-A53
 */
 
-#include "kerneltypes.h"
-#include "kerneltimer.h"
-#include "threadport.h"
-#include "kernel.h"
-#include "ksemaphore.h"
-#include "thread.h"
+#include "mark3.h"
 
 using namespace Mark3;
 
 // Generic timer address definitions
 #define CORE0_TIMER_IRQCNTL (*(volatile uint32_t*)0x40000040)
-#define CORE0_IRQ_SOURCE    (*(volatile uint32_t*)0x40000060)
+#define CORE0_IRQ_SOURCE (*(volatile uint32_t*)0x40000060)
 
 uint32_t g_uGenericTimerFreq;
 
@@ -45,20 +40,20 @@ Semaphore s_clTimerSemaphore;
 void enable_cntv(void)
 {
     uint32_t u32Val = 1;
-    ASM( "msr cntv_ctl_el0, %0 \n" :: "r" (u32Val));
+    ASM("msr cntv_ctl_el0, %0 \n" ::"r"(u32Val));
 }
 
 //---------------------------------------------------------------------------
 void write_cntv_tval(uint32_t u32Val)
 {
-    ASM(" msr cntv_tval_el0, %0 \n" :: "r" (u32Val));
+    ASM(" msr cntv_tval_el0, %0 \n" ::"r"(u32Val));
 }
 
 //---------------------------------------------------------------------------
 uint32_t read_cntfrq(void)
 {
     uint32_t u32Val;
-    ASM( " mrs %0, cntfrq_el0 \n" : "=r" (u32Val));
+    ASM(" mrs %0, cntfrq_el0 \n" : "=r"(u32Val));
     return u32Val;
 }
 } // anonymous namespace
@@ -72,6 +67,7 @@ void TimerTick_Handler(void)
         return;
     }
     KernelTimer::ClearExpiry();
+    Kernel::Tick();
     s_clTimerSemaphore.Post();
 }
 }
@@ -84,7 +80,7 @@ static void KernelTimer_Task(void* unused)
     (void)unused;
 
     KernelTimer::Start();
-    while (1) {
+    while (1) {        
         s_clTimerSemaphore.Pend();
 #if KERNEL_ROUND_ROBIN
         Quantum::SetInTimer();
@@ -114,7 +110,7 @@ void KernelTimer::Start(void)
 {
     g_uGenericTimerFreq = read_cntfrq();
 
-    write_cntv_tval(PORT_TIMER_FREQ);    // Set timer tick
+    write_cntv_tval(PORT_TIMER_FREQ); // Set timer tick
 
     CORE0_TIMER_IRQCNTL = 0x08; // Route timer interrupt to core 0
 
@@ -137,7 +133,7 @@ PORT_TIMER_COUNT_TYPE KernelTimer::Read(void)
 //---------------------------------------------------------------------------
 void KernelTimer::ClearExpiry(void)
 {
-    if (CORE0_IRQ_SOURCE & 0x08 ) {
+    if (CORE0_IRQ_SOURCE & 0x08) {
         write_cntv_tval(PORT_TIMER_FREQ);
     }
 }
