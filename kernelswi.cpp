@@ -75,7 +75,7 @@ void KernelSWI::Trigger(void)
     // Use SVC handler to trigger context switches -- But don't trigger
     // context switches while in a critical section...
     if (!g_uCriticalCount) {
-        asm volatile (" svc 0 \n ");
+        asm volatile(" svc 0 \n ");
     } else {
         g_uSWIQueued = 1;
     }

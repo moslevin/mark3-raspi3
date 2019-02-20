@@ -57,7 +57,7 @@ See license.txt for more information
 */
 #define K_WORD uint64_t //!< Size of a data word
 #define K_ADDR uint64_t //!< Size of an address (pointer size)
-#define K_INT  int64_t
+#define K_INT int64_t
 
 /**
     Set a base datatype used to represent each element of the scheduler's
