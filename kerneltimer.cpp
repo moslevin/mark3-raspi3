@@ -66,7 +66,9 @@ void TimerTick_Handler(void)
     if (!Kernel::IsStarted()) {
         return;
     }
-    KernelTimer::ClearExpiry();
+    if (CORE0_IRQ_SOURCE & 0x08) {
+        write_cntv_tval(PORT_TIMER_FREQ);
+    }
     Kernel::Tick();
     s_clTimerSemaphore.Post();
 }
@@ -122,36 +124,5 @@ void KernelTimer::Stop(void)
 {
     // Not implemented in this port
 }
-
-//---------------------------------------------------------------------------
-PORT_TIMER_COUNT_TYPE KernelTimer::Read(void)
-{
-    // Not implemented in this port
-    return 0;
-}
-
-//---------------------------------------------------------------------------
-void KernelTimer::ClearExpiry(void)
-{
-    if (CORE0_IRQ_SOURCE & 0x08) {
-        write_cntv_tval(PORT_TIMER_FREQ);
-    }
-}
-
-//-------------------------------------------------------------------------
-uint8_t KernelTimer::DI(void)
-{
-    return 0;
-}
-
-//---------------------------------------------------------------------------
-void KernelTimer::EI(void)
-{
-    KernelTimer::RI(0);
-}
-
-//---------------------------------------------------------------------------
-void KernelTimer::RI(bool bEnable_) {}
-
 //---------------------------------------------------------------------------
 } // namespace Mark3
